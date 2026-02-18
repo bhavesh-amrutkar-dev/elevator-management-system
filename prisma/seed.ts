@@ -1,6 +1,4 @@
-import { PrismaClient } from "../src/prisma/generated";
-
-const prisma = new PrismaClient();
+import { prisma } from "lib/prisma";
 
 async function main() {
   await prisma.role.createMany({

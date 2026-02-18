@@ -1,24 +1,24 @@
 generator client {
   provider = "prisma-client"
-  output   = "../src/prisma/generated"
+  output   = "../generated/prisma/client"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-
 model Tier {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String   @unique @db.VarChar(50)
-  discountPct Float    @default(0)
-  creditRate  Float    @default(1)
-  isActive    Boolean  @default(true)
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String  @unique @db.VarChar(50)
+  discountPct Float   @default(0)
+  creditRate  Float   @default(1)
+  isActive    Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   subscriptions Subscription[]
+  organizations Organization[]
 }
 
 model Role {
@@ -29,7 +29,9 @@ model Role {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  subscriptionRoles SubscriptionRole[]
+  subscriptionRoles     SubscriptionRole[]
+  moduleRolePermissions ModuleRolePermission[]
+  users                 User[]
 }
 
 model Subscription {
@@ -45,8 +47,12 @@ model Subscription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tier  Tier? @relation(fields: [tierId], references: [id])
-  roles SubscriptionRole[]
+  tier                      Tier?                      @relation(fields: [tierId], references: [id])
+  roles                     SubscriptionRole[]
+  userSubscriptions         UserSubscription[]
+  subscriptionModules       SubscriptionModule[]
+  invoices                  Invoice[]
+  organizationSubscriptions OrganizationSubscription[]
 
   @@index([tierId])
 }
@@ -61,6 +67,7 @@ model SubscriptionRole {
 
   @@unique([subscriptionId, roleId])
 }
+
 enum DurationUnit {
   DAYS
   MONTHS
@@ -74,416 +81,366 @@ enum RoleName {
   CLIENT
 }
 
+model Country {
+  id            String         @id @default(uuid()) @db.Uuid
+  name          String         @unique @db.VarChar(100)
+  code          String         @unique @db.VarChar(10)
+  isActive      Boolean        @default(true)
+  createdBy     String         @db.VarChar(100)
+  createdDate   DateTime       @default(now())
+  modifiedBy    String?        @db.VarChar(100)
+  modifiedDate  DateTime?
+  states        State[]
+  organizations Organization[]
 
-// model Subscription {
-//   id                        String                     @id @default(uuid()) @db.Uuid
-//   tierId                    String?                    @db.Uuid
-//   roleIds []
-//   planName                  String                     @db.VarChar(100)
-//   duration                  Int
-//   durationUnit              DurationUnit
-//   rate                      Float
-//   credits                   Int
-//   isActive                  Boolean                    @default(true)
-//   createdBy                 String                     @db.VarChar(100)
-//   createdDate               DateTime                   @default(now())
-//   modifiedBy                String?                    @db.VarChar(100)
-//   modifiedDate              DateTime?
+  @@index([createdBy])
+  @@index([modifiedBy])
+}
 
-//   @@index([tierId])
-//   @@index([createdBy])
-//   @@index([modifiedBy])
-// }
+model State {
+  id            String         @id @default(uuid()) @db.Uuid
+  name          String         @db.VarChar(100)
+  countryId     String         @db.Uuid
+  isActive      Boolean        @default(true)
+  createdBy     String         @db.VarChar(100)
+  createdDate   DateTime       @default(now())
+  modifiedBy    String?        @db.VarChar(100)
+  modifiedDate  DateTime?
+  country       Country        @relation(fields: [countryId], references: [id])
+  organizations Organization[]
 
-// model Country {
-//   id            String         @id @default(uuid()) @db.Uuid
-//   name          String         @unique @db.VarChar(100)
-//   code          String         @unique @db.VarChar(10)
-//   isActive      Boolean        @default(true)
-//   createdBy     String         @db.VarChar(100)
-//   createdDate   DateTime       @default(now())
-//   modifiedBy    String?        @db.VarChar(100)
-//   modifiedDate  DateTime?
-//   organizations Organization[]
-//   states        State[]
+  @@index([countryId])
+}
 
-//   @@index([createdBy])
-//   @@index([modifiedBy])
-// }
+model Module {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  name                  String                 @unique @db.VarChar(255)
+  key                   String                 @unique @db.VarChar(100)
+  description           String?                @db.VarChar(255)
+  isActive              Boolean                @default(true)
+  parentId              String?                @db.Uuid
+  createdBy             String                 @db.VarChar(100)
+  createdDate           DateTime               @default(now())
+  modifiedBy            String?                @db.VarChar(100)
+  modifiedDate          DateTime?
+  moduleRolePermissions ModuleRolePermission[]
+  SubscriptionModule    SubscriptionModule[]
 
-// model State {
-//   id            String         @id @default(uuid()) @db.Uuid
-//   name          String         @db.VarChar(100)
-//   countryId     String         @db.Uuid
-//   isActive      Boolean        @default(true)
-//   createdBy     String         @db.VarChar(100)
-//   createdDate   DateTime       @default(now())
-//   modifiedBy    String?        @db.VarChar(100)
-//   modifiedDate  DateTime?
-//   organizations Organization[]
-//   country       Country        @relation(fields: [countryId], references: [id])
+  @@index([createdBy])
+  @@index([modifiedBy])
+  @@index([parentId])
+}
 
-//   @@index([countryId])
-// }
+model Organization {
+  id                        String                     @id @default(uuid()) @db.Uuid
+  name                      String                     @db.VarChar(150)
+  creditBalance             Float                      @default(0.0)
+  billingAddress            String?                    @db.Text
+  officeNumber              String?                    @db.VarChar(50)
+  postalCode                String?                    @db.VarChar(20)
+  autoRenewal               Boolean                    @default(false)
+  status                    OrganizationStatus         @default(Pending)
+  createdBy                 String                     @db.VarChar(100)
+  createdDate               DateTime                   @default(now())
+  modifiedBy                String?                    @db.VarChar(100)
+  modifiedDate              DateTime?
+  countryId                 String?                    @db.Uuid
+  stateId                   String?                    @db.Uuid
+  tierId                    String?                    @db.Uuid
+  subscriptionStartDate     DateTime?
+  subscriptionEndDate       DateTime?
+  creditTransactions        CreditTransaction[]
+  moduleRolePermissions     ModuleRolePermission[]
+  country                   Country?                   @relation(fields: [countryId], references: [id])
+  state                     State?                     @relation(fields: [stateId], references: [id])
+  tier                      Tier?                      @relation(fields: [tierId], references: [id])
+  users                     User[]
+  logoUrl                   String?                    @db.VarChar(100)
+  industry                  Industry                   @default(Education)
+  invoices                  Invoice[]
+  creditTopupRequests       CreditTopupRequest[]
+  OrganizationSubscriptions OrganizationSubscription[]
 
-// model Role {
-//   id                    String                 @id @default(uuid()) @db.Uuid
-//   name                  RoleName               @unique
-//   isActive              Boolean                @default(true)
-//   createdBy             String                 @db.VarChar(100)
-//   createdDate           DateTime               @default(now())
-//   modifiedBy            String?                @db.VarChar(100)
-//   modifiedDate          DateTime?               User[]
+  @@index([countryId])
+  @@index([stateId])
+  @@index([tierId])
+  @@index([createdBy])
+  @@index([modifiedBy])
+}
 
-//   @@index([createdBy])
-//   @@index([modifiedBy])
-// }
+model ModuleRolePermission {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  roleId         String       @db.Uuid
+  userId         String?      @db.Uuid
+  moduleId       String       @db.Uuid
+  hasPermission  Boolean      @default(false)
+  createdBy      String       @db.VarChar(100)
+  createdDate    DateTime     @default(now())
+  modifiedBy     String?      @db.VarChar(100)
+  modifiedDate   DateTime?
+  module         Module       @relation(fields: [moduleId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  role           Role         @relation(fields: [roleId], references: [id])
+  user           User?        @relation(fields: [userId], references: [id])
 
-// model Module {
-//   id                    String                 @id @default(uuid()) @db.Uuid
-//   name                  String                 @unique @db.VarChar(255)
-//   key                   String                 @unique @db.VarChar(100)
-//   description           String?                @db.VarChar(255)
-//   isActive              Boolean                @default(true)
-//   parentId              String?                @db.Uuid
-//   createdBy             String                 @db.VarChar(100)
-//   createdDate           DateTime               @default(now())
-//   modifiedBy            String?                @db.VarChar(100)
-//   modifiedDate          DateTime?
-//   moduleRolePermissions ModuleRolePermission[]
-//   SubscriptionModule    SubscriptionModule[]
+  @@unique([organizationId, roleId, moduleId, userId], name: "org_role_module_user_unique")
+  @@index([organizationId])
+  @@index([roleId])
+  @@index([moduleId])
+  @@index([userId])
+}
 
-//   @@index([createdBy])
-//   @@index([modifiedBy])
-//   @@index([parentId])
-// }
+model User {
+  id                     String                 @id @default(uuid()) @db.Uuid
+  name                   String                 @db.VarChar(100)
+  email                  String                 @unique @db.VarChar(255)
+  password               String?                @db.VarChar(255)
+  mobileNumber           String?                @db.VarChar(20)
+  profession             String?                @db.VarChar(100)
+  qualification          String?                @db.VarChar(100)
+  isEmailVerified        Boolean                @default(false)
+  profilePhotoURL        String?                @db.VarChar(255)
+  eSignURL               String?                @db.VarChar(255)
+  status                 UserStatus             @default(Active)
+  invitationToken        String?                @db.VarChar(255)
+  invitationExpiresAt    DateTime?
+  passwordResetToken     String?                @db.VarChar(255)
+  passwordResetExpiresAt DateTime?
+  createdBy              String                 @db.VarChar(100)
+  createdDate            DateTime               @default(now())
+  modifiedBy             String?                @db.VarChar(100)
+  modifiedDate           DateTime?
+  roleId                 String?                @db.Uuid
+  organizationId         String?                @db.Uuid
+  moduleRolePermissions  ModuleRolePermission[]
+  organization           Organization?          @relation(fields: [organizationId], references: [id])
+  role                   Role?                  @relation(fields: [roleId], references: [id])
+  userSubscriptions      UserSubscription[]
+  sessions               Session[]
+  refreshTokens          RefreshToken[]
 
-// model Organization {
-//   id                        String                     @id @default(uuid()) @db.Uuid
-//   name                      String                     @db.VarChar(150)
-//   creditBalance             Float                      @default(0.0)
-//   billingAddress            String?                    @db.Text
-//   officeNumber              String?                    @db.VarChar(50)
-//   postalCode                String?                    @db.VarChar(20)
-//   autoRenewal               Boolean                    @default(false)
-//   status                    OrganizationStatus         @default(Pending)
-//   createdBy                 String                     @db.VarChar(100)
-//   createdDate               DateTime                   @default(now())
-//   modifiedBy                String?                    @db.VarChar(100)
-//   modifiedDate              DateTime?
-//   countryId                 String?                    @db.Uuid
-//   stateId                   String?                    @db.Uuid
-//   tierId                    String?                    @db.Uuid
-//   subscriptionStartDate     DateTime?
-//   subscriptionEndDate       DateTime?
-//   creditTransactions        CreditTransaction[]
-//   moduleRolePermissions     ModuleRolePermission[]
-//   country                   Country?                   @relation(fields: [countryId], references: [id])
-//   state                     State?                     @relation(fields: [stateId], references: [id])
-//   tier                      Tier?                      @relation(fields: [tierId], references: [id])
-//   users                     User[]
-//   logoUrl                   String?                    @db.VarChar(100)
-//   workingHours              OrganizationWorkingHour[]
-//   termsAndConditions        OrganizationTerms[]
-//   reminders                 OrganizationReminder[]
-//   industry                  Industry                   @default(Education)
-//   invoices                  Invoice[]
-//   assessmentUsers           AssessmentUser[]
-//   assignmentUsers           AssignmentUser[]
-//   creditTopupRequests       CreditTopupRequest[]
-//   OrganizationSubscriptions OrganizationSubscription[]
+  @@index([email])
+  @@index([roleId])
+  @@index([organizationId])
+  @@index([invitationToken])
+  @@index([passwordResetToken])
+  @@index([createdBy])
+  @@index([modifiedBy])
+}
 
-//   @@index([countryId])
-//   @@index([stateId])
-//   @@index([tierId])
-//   @@index([createdBy])
-//   @@index([modifiedBy])
-// }
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  ip        String?
+  userAgent String?
+  expiresAt DateTime
 
-// model ModuleRolePermission {
-//   id             String       @id @default(uuid()) @db.Uuid
-//   organizationId String       @db.Uuid
-//   roleId         String       @db.Uuid
-//   userId         String?      @db.Uuid
-//   moduleId       String       @db.Uuid
-//   hasPermission  Boolean      @default(false)
-//   createdBy      String       @db.VarChar(100)
-//   createdDate    DateTime     @default(now())
-//   modifiedBy     String?      @db.VarChar(100)
-//   modifiedDate   DateTime?
-//   module         Module       @relation(fields: [moduleId], references: [id])
-//   organization   Organization @relation(fields: [organizationId], references: [id])
-//   role           Role         @relation(fields: [roleId], references: [id])
-//   user           User?        @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
-//   @@unique([organizationId, roleId, moduleId, userId], name: "org_role_module_user_unique")
-//   @@index([organizationId])
-//   @@index([roleId])
-//   @@index([moduleId])
-//   @@index([userId])
-// }
+  createdAt DateTime @default(now())
+}
 
-// model User {
-//   id                     String                 @id @default(uuid()) @db.Uuid
-//   name                   String                 @db.VarChar(100)
-//   email                  String                 @db.VarChar(255)
-//   password               String?                @db.VarChar(255)
-//   mobileNumber           String?                @db.VarChar(20)
-//   profession             String?                @db.VarChar(100)
-//   qualification          String?                @db.VarChar(100)
-//   isEmailVerified        Boolean                @default(false)
-//   profilePhotoURL        String?                @db.VarChar(255)
-//   eSignURL               String?                @db.VarChar(255)
-//   status                 UserStatus             @default(Active)
-//   invitationToken        String?                @db.VarChar(255)
-//   invitationExpiresAt    DateTime?
-//   passwordResetToken     String?                @db.VarChar(255)
-//   passwordResetExpiresAt DateTime?
-//   createdBy              String                 @db.VarChar(100)
-//   createdDate            DateTime               @default(now())
-//   modifiedBy             String?                @db.VarChar(100)
-//   modifiedDate           DateTime?
-//   roleId                 String?                @db.Uuid
-//   organizationId         String?                @db.Uuid
-//   moduleRolePermissions  ModuleRolePermission[]
-//   organization           Organization?          @relation(fields: [organizationId], references: [id])
-//   role                   Role?                  @relation(fields: [roleId], references: [id])
-//   userSubscriptions      UserSubscription[]
-//   termsAccepted          UserTermsAcceptance[]
-//   termsEmailRecords      TermsEmailAgreement[]
-//   assessmentUsers        AssessmentUser[]
-//   assignmentUsers        AssignmentUser[]
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @db.Uuid
+  token     String   @unique
+  revoked   Boolean  @default(false)
+  expiresAt DateTime
 
-//   @@index([email])
-//   @@index([roleId])
-//   @@index([organizationId])
-//   @@index([invitationToken])
-//   @@index([passwordResetToken])
-//   @@index([createdBy])
-//   @@index([modifiedBy])
-// }
+  user User @relation(fields: [userId], references: [id])
 
-// model CreditTransaction {
-//   id             String       @id @default(uuid()) @db.Uuid
-//   organizationId String       @db.Uuid
-//   type           CreditType
-//   credit         Float        @default(0)
-//   description    String       @db.VarChar(255)
-//   createdBy      String       @db.VarChar(100)
-//   createdDate    DateTime     @default(now())
-//   modifiedBy     String?      @db.VarChar(100)
-//   modifiedDate   DateTime?
-//   organization   Organization @relation(fields: [organizationId], references: [id])
-// }
+  createdAt DateTime @default(now())
+}
 
-// model UserSubscription {
-//   id               String           @id @default(uuid()) @db.Uuid
-//   userId           String           @db.Uuid
-//   subscriptionId   String           @db.Uuid
-//   subscriptionType SubscriptionType
-//   amount           Float?
-//   startDate        DateTime?
-//   endDate          DateTime?
-//   status           String           @default("Active")
-//   createdBy        String           @db.VarChar(100)
-//   createdDate      DateTime         @default(now())
-//   modifiedBy       String?          @db.VarChar(100)
-//   modifiedDate     DateTime?
-//   subscription     Subscription     @relation(fields: [subscriptionId], references: [id])
-//   user             User             @relation(fields: [userId], references: [id])
-// }
+model VerificationToken {
+  id        String    @id @default(uuid())
+  email     String
+  token     String    @unique
+  expiresAt DateTime
+  type      TokenType
 
-// enum Industry {
-//   Education
-//   HealthCare
-// }
+  createdAt DateTime @default(now())
+}
 
-// enum DurationUnit {
-//   Days
-//   Months
-//   Years
-// }
+enum TokenType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
 
-// enum RoleName {
-//   SuperAdmin @map("SuperAdmin")
-//   AdminUser  @map("AdminUser")
-//   User       @map("User")
-//   Clients    @map("Clients")
-// }
+model CreditTransaction {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  type           CreditType
+  credit         Float        @default(0)
+  description    String       @db.VarChar(255)
+  createdBy      String       @db.VarChar(100)
+  createdDate    DateTime     @default(now())
+  modifiedBy     String?      @db.VarChar(100)
+  modifiedDate   DateTime?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+}
 
-// enum UserStatus {
-//   Active     @map("Active")
-//   InActive   @map("InActive")
-//   Invited    @map("Invited")
-//   Deactivate @map("Deactivate")
-//   Suspend    @map("Suspend")
-// }
+model UserSubscription {
+  id               String           @id @default(uuid()) @db.Uuid
+  userId           String           @db.Uuid
+  subscriptionId   String           @db.Uuid
+  subscriptionType SubscriptionType
+  amount           Float?
+  startDate        DateTime?
+  endDate          DateTime?
+  status           String           @default("Active")
+  createdBy        String           @db.VarChar(100)
+  createdDate      DateTime         @default(now())
+  modifiedBy       String?          @db.VarChar(100)
+  modifiedDate     DateTime?
+  subscription     Subscription     @relation(fields: [subscriptionId], references: [id])
+  user             User             @relation(fields: [userId], references: [id])
+}
 
-// enum OrganizationStatus {
-//   Active   @map("Active")
-//   InActive @map("InActive")
-//   Pending  @map("Pending")
-//   Suspend  @map("Suspend")
-//   Archive  @map("Archive")
-// }
+enum Industry {
+  Education
+  HealthCare
+}
 
-// enum CreditType {
-//   Credit @map("Credit")
-//   Debit  @map("Debit")
-// }
+enum UserStatus {
+  Active     @map("Active")
+  InActive   @map("InActive")
+  Invited    @map("Invited")
+  Deactivate @map("Deactivate")
+  Suspend    @map("Suspend")
+}
 
-// enum SubscriptionType {
-//   Monthly @map("Monthly")
-//   Annual  @map("Annual")
-// }
+enum OrganizationStatus {
+  Active   @map("Active")
+  InActive @map("InActive")
+  Pending  @map("Pending")
+  Suspend  @map("Suspend")
+  Archive  @map("Archive")
+}
 
+enum CreditType {
+  Credit @map("Credit")
+  Debit  @map("Debit")
+}
 
-// model Tier {
-//   id            String         @id @default(uuid()) @db.Uuid
-//   name          String         @unique
-//   discount      Float
-//   isActive      Boolean
-//   createdBy     String         @db.VarChar(100)
-//   createdDate   DateTime       @default(now())
-//   modifiedBy    String?        @db.VarChar(100)
-//   modifiedDate  DateTime?
-//   subscriptions Subscription[]
-//   creditRate float
-//   Organizations Organization[]
-// }
+enum SubscriptionType {
+  Monthly @map("Monthly")
+  Annual  @map("Annual")
+}
 
-// model SubscriptionModule {
-//   id             String       @id @default(uuid()) @db.Uuid
-//   subscriptionId String       @db.Uuid
-//   moduleId       String       @db.Uuid
-//   createdBy      String       @db.VarChar(100)
-//   createdDate    DateTime     @default(now())
-//   modifiedBy     String?      @db.VarChar(100)
-//   modifiedDate   DateTime?
-//   module         Module       @relation(fields: [moduleId], references: [id])
-//   subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+model SubscriptionModule {
+  id             String       @id @default(uuid()) @db.Uuid
+  subscriptionId String       @db.Uuid
+  moduleId       String       @db.Uuid
+  createdBy      String       @db.VarChar(100)
+  createdDate    DateTime     @default(now())
+  modifiedBy     String?      @db.VarChar(100)
+  modifiedDate   DateTime?
+  module         Module       @relation(fields: [moduleId], references: [id])
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
 
-//   @@unique([subscriptionId, moduleId])
-// }
+  @@unique([subscriptionId, moduleId])
+}
 
-// enum InvoiceStatus {
-//   PENDING
-//   PAID
-//   CANCELLED
-// }
+enum InvoiceStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
 
-// enum PaymentType {
-//   CASH
-//   BANK_TRANSFER
-//   CHEQUE
-//   CREDIT_CARD
-//   DEBIT_CARD
-//   UPI
-//   OTHER
-// }
+enum PaymentType {
+  CASH
+  BANK_TRANSFER
+  CHEQUE
+  CREDIT_CARD
+  DEBIT_CARD
+  UPI
+  OTHER
+}
 
-// model Invoice {
-//   id                  String        @id @default(uuid()) @db.Uuid
-//   invoiceNumber       String
-//   invoiceDate         DateTime
-//   initialAmount       Float
-//   status              InvoiceStatus @default(PENDING)
-//   paymentType         PaymentType?
-//   paymentReceivedDate DateTime?
-//   createdBy           String        @db.VarChar(100)
-//   createdDate         DateTime      @default(now())
-//   modifiedBy          String?       @db.VarChar(100)
-//   modifiedDate        DateTime?     @updatedAt
+model Invoice {
+  id                  String        @id @default(uuid()) @db.Uuid
+  invoiceNumber       String
+  invoiceDate         DateTime
+  initialAmount       Float
+  status              InvoiceStatus @default(PENDING)
+  paymentType         PaymentType?
+  paymentReceivedDate DateTime?
+  createdBy           String        @db.VarChar(100)
+  createdDate         DateTime      @default(now())
+  modifiedBy          String?       @db.VarChar(100)
+  modifiedDate        DateTime?     @updatedAt
 
-//   organizationId String       @db.Uuid
-//   organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId String       @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id])
 
-//   subscriptionId       String?             @db.Uuid
-//   subscription         Subscription?       @relation(fields: [subscriptionId], references: [id])
-//   creditTopUpRequestId String?             @db.Uuid
-//   creditRequest        CreditTopupRequest? @relation(fields: [creditTopUpRequestId], references: [id])
+  subscriptionId       String?             @db.Uuid
+  subscription         Subscription?       @relation(fields: [subscriptionId], references: [id])
+  creditTopUpRequestId String?             @db.Uuid
+  creditRequest        CreditTopupRequest? @relation(fields: [creditTopUpRequestId], references: [id])
 
-//   @@unique([organizationId, invoiceNumber])
-// }
+  @@unique([organizationId, invoiceNumber])
+}
 
-// model CreditRate {
-//   id           String    @id @default(uuid()) @db.Uuid
-//   creditRate   Float     @default(1)
-//   createdBy    String    @db.VarChar(100)
-//   createdDate  DateTime  @default(now())
-//   modifiedBy   String?   @db.VarChar(100)
-//   modifiedDate DateTime? @updatedAt
+enum CreditExpiry {
+  OneMonth       @map("1 Month")
+  ThreeMonths    @map("3 Months")
+  SixMonths      @map("6 Months")
+  TwelveMonths   @map("12 Months")
+  EighteenMonths @map("18 Months")
+}
 
-//   tierId String @unique @db.Uuid
-//   Tier   Tier   @relation(fields: [tierId], references: [id])
-// }
+model CreditTopupRequest {
+  id                    String    @id @default(uuid()) @db.Uuid
+  organizationId        String    @db.Uuid
+  credit                Int
+  description           String?   @db.VarChar(255)
+  requestedDate         DateTime  @default(now())
+  approvalDate          DateTime?
+  creditRequestStatusId String    @db.Uuid
 
+  createdBy    String    @db.VarChar(100)
+  createdDate  DateTime  @default(now())
+  modifiedBy   String?   @db.VarChar(100)
+  modifiedDate DateTime? @updatedAt
 
+  // Relations
+  organization        Organization        @relation(fields: [organizationId], references: [id])
+  creditRequestStatus CreditRequestStatus @relation(fields: [creditRequestStatusId], references: [id])
+  Invoice             Invoice[]
+}
 
-// enum CreditExpiry {
-//   OneMonth       @map("1 Month")
-//   ThreeMonths    @map("3 Months")
-//   SixMonths      @map("6 Months")
-//   TwelveMonths   @map("12 Months")
-//   EighteenMonths @map("18 Months")
-// }
+model CreditRequestStatus {
+  id   String @id @default(uuid()) @db.Uuid
+  name String @db.VarChar(50)
 
+  createdBy    String    @db.VarChar(100)
+  createdDate  DateTime  @default(now())
+  modifiedBy   String?   @db.VarChar(100)
+  modifiedDate DateTime? @updatedAt
 
+  // Relations
+  creditTopupRequests CreditTopupRequest[]
+}
 
-// model CreditTopupRequest {
-//   id                    String    @id @default(uuid()) @db.Uuid
-//   organizationId        String    @db.Uuid
-//   credit                Int
-//   description           String?   @db.VarChar(255)
-//   requestedDate         DateTime  @default(now())
-//   approvalDate          DateTime?
-//   creditRequestStatusId String    @db.Uuid
+model OrganizationSubscription {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @db.Uuid
+  subscriptionId String    @db.Uuid
+  createdBy      String    @db.VarChar(100)
+  createdDate    DateTime  @default(now())
+  modifiedBy     String?   @db.VarChar(100)
+  modifiedDate   DateTime? @updatedAt
 
-//   createdBy    String    @db.VarChar(100)
-//   createdDate  DateTime  @default(now())
-//   modifiedBy   String?   @db.VarChar(100)
-//   modifiedDate DateTime? @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id])
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
 
-//   // Relations
-//   organization        Organization        @relation(fields: [organizationId], references: [id])
-//   creditRequestStatus CreditRequestStatus @relation(fields: [creditRequestStatusId], references: [id])
-//   Invoice             Invoice[]
-// }
+  @@unique([organizationId, subscriptionId])
+}
 
-// model CreditRequestStatus {
-//   id   String @id @default(uuid()) @db.Uuid
-//   name String @db.VarChar(50)
-
-//   createdBy    String    @db.VarChar(100)
-//   createdDate  DateTime  @default(now())
-//   modifiedBy   String?   @db.VarChar(100)
-//   modifiedDate DateTime? @updatedAt
-
-//   // Relations
-//   creditTopupRequests CreditTopupRequest[]
-// }
-
-// model OrganizationSubscription {
-//   id             String    @id @default(uuid()) @db.Uuid
-//   organizationId String    @db.Uuid
-//   subscriptionId String    @db.Uuid
-//   createdBy      String    @db.VarChar(100)
-//   createdDate    DateTime  @default(now())
-//   modifiedBy     String?   @db.VarChar(100)
-//   modifiedDate   DateTime? @updatedAt
-
-//   organization Organization @relation(fields: [organizationId], references: [id])
-//   subscription Subscription @relation(fields: [subscriptionId], references: [id])
-
-//   @@unique([organizationId, subscriptionId])
-// }
-
-
-// enum Gender {
-//   MALE
-//   FEMALE
-//   OTHER
-// }
-
-
-
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
