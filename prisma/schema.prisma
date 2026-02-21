@@ -32,6 +32,7 @@ model Role {
   subscriptionRoles     SubscriptionRole[]
   moduleRolePermissions ModuleRolePermission[]
   users                 User[]
+  userOrganizations     UserOrganization[]
 }
 
 model Subscription {
@@ -160,6 +161,7 @@ model Organization {
   invoices                  Invoice[]
   creditTopupRequests       CreditTopupRequest[]
   OrganizationSubscriptions OrganizationSubscription[]
+  userOrganizations         UserOrganization[]
 
   @@index([countryId])
   @@index([stateId])
@@ -212,17 +214,17 @@ model User {
   modifiedBy             String?                @db.VarChar(100)
   modifiedDate           DateTime?
   roleId                 String?                @db.Uuid
-  organizationId         String?                @db.Uuid
   moduleRolePermissions  ModuleRolePermission[]
-  organization           Organization?          @relation(fields: [organizationId], references: [id])
   role                   Role?                  @relation(fields: [roleId], references: [id])
   userSubscriptions      UserSubscription[]
   sessions               Session[]
   refreshTokens          RefreshToken[]
+  organization           Organization?          @relation(fields: [organizationId], references: [id])
+  organizationId         String?                @db.Uuid
+  userOrganizations      UserOrganization[]
 
   @@index([email])
   @@index([roleId])
-  @@index([organizationId])
   @@index([invitationToken])
   @@index([passwordResetToken])
   @@index([createdBy])
@@ -443,4 +445,31 @@ enum Gender {
   MALE
   FEMALE
   OTHER
+}
+
+model UserOrganization {
+  id             String @id @default(uuid()) @db.Uuid
+  userId         String @db.Uuid
+  organizationId String @db.Uuid
+  roleId         String @db.Uuid
+
+  status    MembershipStatus @default(ACTIVE)
+  joinedAt  DateTime         @default(now())
+  invitedBy String?
+  isPrimary Boolean          @default(false)
+
+  user         User         @relation(fields: [userId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+  role         Role         @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  REMOVED
 }
