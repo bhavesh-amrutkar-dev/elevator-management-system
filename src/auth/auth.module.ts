@@ -1,11 +1,34 @@
 import { Module } from '@nestjs/common';
-import { AuthController } from './auth.controller';
+import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
+import { ConfigService } from '@nestjs/config';
+
 import { AuthService } from './auth.service';
-import { UserModule } from 'src/user/user.module';
+import { JwtStrategy } from './jwt.strategy';
 
 @Module({
-  imports: [UserModule],
-  controllers: [AuthController],
-  providers: [AuthService]
+  imports: [
+    PassportModule,
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.get<string>('JWT_SECRET');
+        const expiresIn = configService.get<string>('JWT_EXPIRES_IN');
+
+        if (!secret || !expiresIn) {
+          throw new Error('JWT_SECRET or JWT_EXPIRES_IN is not defined');
+        }
+
+        return {
+          secret,
+          signOptions: {
+            expiresIn: expiresIn as any, // 👈 clean cast
+          },
+        };
+      },
+    }),
+  ],
+  providers: [AuthService, JwtStrategy],
+  exports: [AuthService],
 })
-export class AuthModule {}
+export class AuthModule { }
