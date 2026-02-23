@@ -8,21 +8,26 @@ import { TierModule } from './tier/tier.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { ConfigModule } from '@nestjs/config';
+import { RolesGuard } from './common/guards/roles.guard';
 
 @Module({
   imports: [ConfigModule.forRoot({
-    isGlobal: true, // 👈 makes env available everywhere
+    isGlobal: true, 
   }),
-  AuthModule, 
-  UserModule, 
-  SubscriptionModule, 
-  TierModule
-],
+    AuthModule,
+    UserModule,
+    SubscriptionModule,
+    TierModule
+  ],
   controllers: [AppController],
-  providers: [AppService,
+  providers: [
     {
       provide: APP_GUARD,
-      useClass: JwtAuthGuard,
+      useClass: JwtAuthGuard, 
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard, 
     },
   ],
 })

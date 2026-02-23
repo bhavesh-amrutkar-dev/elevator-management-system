@@ -1,8 +1,8 @@
 import { Controller, Post, Body, Req } from '@nestjs/common';
 import { TierService } from './tier.service';
 import { CreateTierDto } from './dto/create-tier';
-import { Roles } from 'src/auth/roles.decorator';
-import { RoleName } from 'generated/prisma/client/enums';
+import { Roles } from '../auth/roles.decorator';
+import { RoleName } from '../../generated/prisma/client/enums';
 
 @Controller('tier')
 export class TierController {

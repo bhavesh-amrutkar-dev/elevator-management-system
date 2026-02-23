@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { CreateTierDto } from './dto/create-tier';
-import prisma from 'lib/prisma';
+import prisma from '../../lib/prisma';
 
 @Injectable()
 export class TierService {
