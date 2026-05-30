@@ -9,6 +9,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { ConfigModule } from '@nestjs/config';
 import { RolesGuard } from './common/guards/roles.guard';
+import { HealthController } from './health/health.controller';
 
 @Module({
   imports: [ConfigModule.forRoot({
@@ -19,8 +20,9 @@ import { RolesGuard } from './common/guards/roles.guard';
     SubscriptionModule,
     TierModule
   ],
-  controllers: [AppController],
+  controllers: [AppController, HealthController],
   providers: [
+    AppService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard, 
