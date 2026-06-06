@@ -10,6 +10,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { ConfigModule } from '@nestjs/config';
 import { RolesGuard } from './common/guards/roles.guard';
 import { HealthController } from './health/health.controller';
+import { ModulesModule } from './modules/modules.module';
 
 @Module({
   imports: [ConfigModule.forRoot({
@@ -18,7 +19,8 @@ import { HealthController } from './health/health.controller';
     AuthModule,
     UserModule,
     SubscriptionModule,
-    TierModule
+    TierModule,
+    ModulesModule
   ],
   controllers: [AppController, HealthController],
   providers: [
