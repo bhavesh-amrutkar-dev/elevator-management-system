@@ -3,12 +3,20 @@ import { AppModule } from './app.module';
 import { SuccessResponseInterceptor } from './common/interceptors/success-response.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filtter';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalInterceptors(new SuccessResponseInterceptor());
   app.useGlobalFilters(new HttpExceptionFilter());
 
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
 
   const config = new DocumentBuilder()
     .setTitle('Auth API')

@@ -1,7 +1,8 @@
 
 import * as bcrypt from 'bcrypt'
 import { UserStatus } from '../generated/prisma/client/enums';
-import prisma from '../lib/prisma';  
+import prisma from '../lib/prisma';
+import { seedModules } from './seeds/modules.seed';
 async function main() {
   console.log('🌱 Seeding started...')
   await prisma.role.createMany({
@@ -14,6 +15,9 @@ async function main() {
     skipDuplicates: true
   });
   console.log('✅ Roles seeded')
+
+
+  await seedModules();
   const superAdminRole = await prisma.role.findUnique({
     where: { name: 'SUPER_ADMIN' },
   })
@@ -52,6 +56,7 @@ async function main() {
   })
 
   console.log('👑 Super Admin created successfully')
+
 
 }
 

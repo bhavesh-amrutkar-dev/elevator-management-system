@@ -11,11 +11,13 @@ import { ConfigModule } from '@nestjs/config';
 import { RolesGuard } from './common/guards/roles.guard';
 import { HealthController } from './health/health.controller';
 import { ModulesModule } from './modules/modules.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [ConfigModule.forRoot({
-    isGlobal: true, 
+    isGlobal: true,
   }),
+    PrismaModule,
     AuthModule,
     UserModule,
     SubscriptionModule,
@@ -27,11 +29,11 @@ import { ModulesModule } from './modules/modules.module';
     AppService,
     {
       provide: APP_GUARD,
-      useClass: JwtAuthGuard, 
+      useClass: JwtAuthGuard,
     },
     {
       provide: APP_GUARD,
-      useClass: RolesGuard, 
+      useClass: RolesGuard,
     },
   ],
 })
