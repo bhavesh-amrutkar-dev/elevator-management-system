@@ -1,16 +1,63 @@
-import { Injectable } from '@nestjs/common';
-import { UserService } from 'src/user/user.service';
-import { RegisterDto } from './dto/registerUser.dto';
-import bcrypt from 'bcrypt';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+import { loginDto } from './dto/login.dto';
+import prisma from '../../lib/prisma';
+
 @Injectable()
 export class AuthService {
-    constructor(private readonly userService: UserService){}
-   async register(data: RegisterDto) {
-        console.log("data", data);
-        const saltRounds = 10;
-        const hashPass = await bcrypt.hash(data.password, saltRounds)
-        const res = this.userService.createUser(...data, password: hashPass)
-        return res;
+  constructor(
+    private readonly jwtService: JwtService,
+  ) { }
+
+  // 🔐 Generate Token
+  generateToken(user: any): string {
+    const payload = {
+      id: user.id,
+      email: user.email,
+      role: user.role, // if enum
+      organization: user.organization,
+    };
+
+    return this.jwtService.sign(payload);
+  }
+
+  // 🔍 Validate User
+  async validateUser(data: loginDto) {
+    const user = await prisma.user.findUnique({
+      where: { email: data.email },
+      include: {
+        role: true,
+        organization: true,
+      },
+    });
+
+    if (!user || !user.password) {
+      throw new UnauthorizedException('Invalid credentials');
     }
 
+    const isPasswordMatch = await bcrypt.compare(
+      data.password,
+      user.password,
+    );
+
+    if (!isPasswordMatch) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Remove password before returning
+    const { password, ...result } = user;
+
+    return result;
+  }
+
+  async login(data: loginDto) {
+    const user = await this.validateUser(data);
+
+    const accessToken = this.generateToken(user);
+
+    return {
+      accessToken,
+    };
+  }
 }
