@@ -1,4 +1,4 @@
-import prisma from "../../lib/prisma";
+import prisma from "../client";
 
 export async function seedModules() {
     await prisma.module.createMany({

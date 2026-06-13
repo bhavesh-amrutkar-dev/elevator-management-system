@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { CreateTierDto } from './dto/create-tier';
-import prisma from '../../lib/prisma';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class TierService {
-    async create(data: CreateTierDto) {
-        return prisma.tier.create({data})
-    }
+    constructor(private readonly prisma: PrismaService) {}
 
+    async create(data: CreateTierDto) {
+        return this.prisma.tier.create({ data });
+    }
 }

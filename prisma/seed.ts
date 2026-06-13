@@ -1,7 +1,7 @@
 
 import * as bcrypt from 'bcrypt'
 import { UserStatus } from '../generated/prisma/client/enums';
-import prisma from '../lib/prisma';
+import prisma from './client';
 import { seedModules } from './seeds/modules.seed';
 async function main() {
   console.log('🌱 Seeding started...')
