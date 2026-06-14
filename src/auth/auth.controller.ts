@@ -7,9 +7,9 @@ import {
 } from '@nestjs/common';
 
 import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/registerUser.dto';
 import { Public } from './public.decorator';
 import { loginDto } from './dto/login.dto';
+import { Throttle } from '@nestjs/throttler';
 
 import {
   ApiTags,
@@ -18,77 +18,37 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 
-@ApiTags('Auth') // Group name in Swagger
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // 🔐 Register
-  /*
-  @Post('register')
-  @Public()
-
-  @ApiOperation({
-    summary: 'Register User',
-    description: 'Creates a new user account',
-  })
-
-  @ApiBody({
-    type: RegisterDto,
-  })
-
-  @ApiResponse({
-    status: 201,
-    description: 'User registered successfully',
-  })
-
-  @ApiResponse({
-    status: 400,
-    description: 'Bad request',
-  })
-
-  async register(@Body() data: RegisterDto) {
-    return this.authService.register(data);
-  }
-  */
-
   // 🔐 Login
+  // Stricter rate limit: 5 attempts per 60 seconds (overrides global 100/60s)
+  @Throttle({ global: { ttl: 60000, limit: 5 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Public()
-
   @ApiOperation({
     summary: 'User Login',
     description: 'Login using email and password',
   })
-
   @ApiBody({
     type: loginDto,
     description: 'Login credentials',
   })
-
   @ApiResponse({
     status: 200,
     description: 'Login successful',
     schema: {
       example: {
-        access_token: 'jwt_token_here',
-        user: {
-          id: 1,
-          email: 'user@gmail.com',
-        },
+        accessToken: 'jwt_token_here',
       },
     },
   })
-
-  @ApiResponse({
-    status: 401,
-    description: 'Invalid email or password',
-  })
-
+  @ApiResponse({ status: 401, description: 'Invalid email or password' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
   async login(@Body() body: loginDto) {
-    const result = await this.authService.login(body);
-
-    return result;
+    return this.authService.login(body);
   }
 }
