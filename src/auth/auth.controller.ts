@@ -4,11 +4,11 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Logger,
 } from '@nestjs/common';
 
 import { AuthService } from './auth.service';
 import { Public } from './public.decorator';
-import { loginDto } from './dto/login.dto';
 import { Throttle } from '@nestjs/throttler';
 
 import {
@@ -17,16 +17,18 @@ import {
   ApiResponse,
   ApiBody,
 } from '@nestjs/swagger';
+import { LoginDto } from './dto/login.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(private readonly authService: AuthService) {}
 
-  // 🔐 Login
-  // Stricter rate limit: 5 attempts per 60 seconds (overrides global 100/60s)
   @Throttle({ global: { ttl: 60000, limit: 5 } })
   @Post('login')
+
   @HttpCode(HttpStatus.OK)
   @Public()
   @ApiOperation({
@@ -34,7 +36,7 @@ export class AuthController {
     description: 'Login using email and password',
   })
   @ApiBody({
-    type: loginDto,
+    type: LoginDto,
     description: 'Login credentials',
   })
   @ApiResponse({
@@ -48,7 +50,21 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Invalid email or password' })
   @ApiResponse({ status: 429, description: 'Too many requests' })
-  async login(@Body() body: loginDto) {
-    return this.authService.login(body);
+  async login(@Body() body: LoginDto) {
+    this.logger.log(`Login attempt for email: ${body.email}`);
+
+    try {
+      const result = await this.authService.login(body);
+
+      this.logger.log(`Login successful for email: ${body.email}`);
+
+      return result;
+    } catch (error) {
+      this.logger.warn(
+        `Login failed for email: ${body.email}. `,
+      );
+
+      throw error;
+    }
   }
 }
