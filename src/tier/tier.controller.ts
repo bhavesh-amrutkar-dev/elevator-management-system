@@ -1,16 +1,20 @@
-import { Controller, Post, Body, Req } from '@nestjs/common';
+import { Controller, Post, Body } from '@nestjs/common';
 import { TierService } from './tier.service';
 import { CreateTierDto } from './dto/create-tier';
 import { Roles } from '../auth/roles.decorator';
+import { CurrentUser } from '../auth/current-user.decorator';
 import { RoleName } from '../../generated/prisma/client/enums';
 
 @Controller('tier')
 export class TierController {
-    constructor(private readonly tierService: TierService) { }
-    @Roles(RoleName.SUPER_ADMIN)
-    @Post()
-    async create(@Body() data: CreateTierDto) {
+  constructor(private readonly tierService: TierService) {}
 
-        return this.tierService.create(data);
-    }
+  @Roles(RoleName.SUPER_ADMIN)
+  @Post()
+  async create(
+    @Body() data: CreateTierDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.tierService.create(data);
+  }
 }

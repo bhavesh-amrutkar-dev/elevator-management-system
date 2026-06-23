@@ -10,10 +10,11 @@ export class ModulesService {
   constructor(private readonly prisma: PrismaService) { }
 
   async create(createModuleDto: CreateModuleDto) {
+    console.log('createModuleDto', createModuleDto);
     // return this.prisma.module.create({
     //   data: {
     //     ...createModuleDto,
-    //     createdBy: us,
+    //     createdBy: ,
     //   },
     // });
   }
